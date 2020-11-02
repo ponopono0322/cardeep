@@ -23,12 +23,21 @@ import android.widget.ImageView;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import com.google.android.gms.tasks.OnSuccessListener;
+import com.google.mlkit.vision.common.InputImage;
+import com.google.mlkit.vision.label.ImageLabel;
+import com.google.mlkit.vision.label.ImageLabeler;
+import com.google.mlkit.vision.label.ImageLabeling;
+import com.google.mlkit.vision.label.automl.AutoMLImageLabelerLocalModel;
+import com.google.mlkit.vision.label.automl.AutoMLImageLabelerOptions;
+
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.text.SimpleDateFormat;
 import java.util.Date;
+import java.util.List;
 
 public class AnalysisActivity extends AppCompatActivity {
     private static final int REQUEST_CODE = 0;
@@ -39,6 +48,17 @@ public class AnalysisActivity extends AppCompatActivity {
     private TextView textView;
     private TextView inviText;
     private ImageView imageView;
+
+    AutoMLImageLabelerLocalModel localModel = new AutoMLImageLabelerLocalModel.Builder()
+            .setAssetFilePath("manifest.json")
+            // or .setAbsoluteFilePath(absolute file path to manifest file)
+            .build();
+
+    AutoMLImageLabelerOptions autoMLImageLabelerOptions = new AutoMLImageLabelerOptions.Builder(localModel)
+            .setConfidenceThreshold(0.0f)  // Evaluate your model in the Firebase console
+            // to determine an appropriate value.
+            .build();
+    ImageLabeler labeler = ImageLabeling.getClient(autoMLImageLabelerOptions);
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -74,24 +94,35 @@ public class AnalysisActivity extends AppCompatActivity {
                 inviText.setVisibility(View.GONE);
             }
         });
-        //결과화면 넘어가는 버튼
+        //결과화면 버튼
         Button button1 = (Button)findViewById(R.id.butten_get_data);
         button1.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                ByteArrayOutputStream stream = new ByteArrayOutputStream();
                 Bitmap bitmap = ((BitmapDrawable)imageView.getDrawable()).getBitmap();
-                float scale = (float) (1024/(float)bitmap.getWidth());
-                int image_w = (int) (bitmap.getWidth() * scale);
-                int image_h = (int) (bitmap.getHeight() * scale);
-                Bitmap resize = Bitmap.createScaledBitmap(bitmap, image_w, image_h, true);
-                resize.compress(Bitmap.CompressFormat.JPEG, 100, stream);
-                byte[] byteArray = stream.toByteArray();
-
-                Intent intent = new Intent(AnalysisActivity.this, MatchActivity.class);
-                intent.putExtra("image", byteArray);
-
-                startActivity(intent);
+                InputImage image = InputImage.fromBitmap(bitmap, 0);
+                labeler.process(image).addOnSuccessListener(new OnSuccessListener<List<ImageLabel>>() {
+                    @Override
+                    public void onSuccess(List<ImageLabel> labels) {
+                        String[] textarr = new String[10];
+                        String[] textarr1 = new String[10];
+                        int i = 0;
+                        for (ImageLabel label : labels) {
+                            String text = label.getText();
+                            textarr[i] = text;
+                            float confidence = label.getConfidence();
+                            String s_num = Float.toString(confidence);
+                            textarr1[i] = s_num;
+                            i++;
+                            if (i == 9) {
+                                TextView textView1 = (TextView) findViewById(R.id.textView1);
+                                textView1.setText(textarr[0]);
+                                TextView textView2 = (TextView) findViewById(R.id.textView2);
+                                textView2.setText(textarr1[0]);
+                            }
+                        }
+                    }
+                });
             }
         });
 
