@@ -10,6 +10,7 @@ import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
+import android.graphics.drawable.BitmapDrawable;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
@@ -17,10 +18,12 @@ import android.os.Environment;
 import android.provider.MediaStore;
 import android.util.Log;
 import android.view.View;
+import android.widget.Button;
 import android.widget.ImageView;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
@@ -29,6 +32,7 @@ import java.util.Date;
 
 public class AnalysisActivity extends AppCompatActivity {
     private static final int REQUEST_CODE = 0;
+    private static boolean BUTTON_FROM_CAMERA = false;       //false:갤러리, true:카메라
     final private static String TAG = "my_image";
     String mCurrentPhotoPath;
 
@@ -40,32 +44,54 @@ public class AnalysisActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_analysis);
-
+        //이미지 뷰에 사진 올리기
         imageView = findViewById(R.id.imageView2);
         imageView.setOnClickListener(new View.OnClickListener(){
             @Override
             public void onClick(View v) {
+                BUTTON_FROM_CAMERA = true;
                 dispatchTakePictureIntent();
             }
         });
-
+        //갤러리 통해서 이미지 얻기
         textView = findViewById(R.id.butten_get_image);
         textView.setOnClickListener(new View.OnClickListener(){
             @Override
             public void onClick(View v) {
+                BUTTON_FROM_CAMERA = false;
                 Intent intent = new Intent();
                 intent.setType("image/*");
                 intent.setAction(Intent.ACTION_GET_CONTENT);
                 startActivityForResult(intent, REQUEST_CODE);
             }
         });
-
+        //이미지 삭제 버튼
         inviText = findViewById(R.id.butten_delete_image);
         inviText.setOnClickListener(new View.OnClickListener(){
             @Override
             public void onClick(View v) {
                 imageView.setImageResource(R.drawable.ic_baseline_camera_alt_24);
                 inviText.setVisibility(View.GONE);
+            }
+        });
+        //결과화면 넘어가는 버튼
+        Button button1 = (Button)findViewById(R.id.butten_get_data);
+        button1.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                ByteArrayOutputStream stream = new ByteArrayOutputStream();
+                Bitmap bitmap = ((BitmapDrawable)imageView.getDrawable()).getBitmap();
+                float scale = (float) (1024/(float)bitmap.getWidth());
+                int image_w = (int) (bitmap.getWidth() * scale);
+                int image_h = (int) (bitmap.getHeight() * scale);
+                Bitmap resize = Bitmap.createScaledBitmap(bitmap, image_w, image_h, true);
+                resize.compress(Bitmap.CompressFormat.JPEG, 100, stream);
+                byte[] byteArray = stream.toByteArray();
+
+                Intent intent = new Intent(AnalysisActivity.this, MatchActivity.class);
+                intent.putExtra("image", byteArray);
+
+                startActivity(intent);
             }
         });
 
@@ -97,17 +123,19 @@ public class AnalysisActivity extends AppCompatActivity {
         if(requestCode == REQUEST_CODE) {
             if(resultCode == RESULT_OK) {
                 try {
-                    File file = new File(mCurrentPhotoPath);
-                    Bitmap bitmap;
-                    bitmap = MediaStore.Images.Media.getBitmap(getContentResolver(), Uri.fromFile(file));
-                    imageView.setImageBitmap(bitmap);
                     inviText.setVisibility(View.VISIBLE);
-                    InputStream in = getContentResolver().openInputStream(data.getData());
-
-                    Bitmap img = BitmapFactory.decodeStream(in);
-                    in.close();
-
-                    imageView.setImageBitmap(img);
+                    if(BUTTON_FROM_CAMERA == true) {        //카메라를 통해 이미지 얻는 경우
+                        File file = new File(mCurrentPhotoPath);
+                        Bitmap bitmap;
+                        bitmap = MediaStore.Images.Media.getBitmap(getContentResolver(), Uri.fromFile(file));
+                        imageView.setImageBitmap(bitmap);
+                    }
+                    else {                                  //갤러리를 통해 이미지 얻는 경우
+                        InputStream in = getContentResolver().openInputStream(data.getData());
+                        Bitmap img = BitmapFactory.decodeStream(in);
+                        in.close();
+                        imageView.setImageBitmap(img);
+                    }
                 } catch(Exception e) { }
             }
             else if(resultCode == RESULT_CANCELED) {
@@ -140,5 +168,4 @@ public class AnalysisActivity extends AppCompatActivity {
             }
         }
     }
-
 }
