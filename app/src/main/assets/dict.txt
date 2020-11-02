@@ -1,0 +1,10 @@
+2020_hyundai_palisade
+2020_hyundai_porter_2
+2020_benz_s_class
+2020_hyundai_santafe
+2020_lamborghini_urus
+2021_toyota_prius_prime
+2021_bmw_5_series
+2021_mini_countryman_cooper_s
+2020_hyundai_grandstarex
+2019_volvo_xc40
